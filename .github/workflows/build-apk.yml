@@ -2,73 +2,73 @@ name: Build RideMitra APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.0'
-          channel: stable
+          flutter-version: '3.x'
+          channel: 'stable'
 
-      - name: Setup Android Project & Update Configs
+      - name: Prepare and Build Flutter Project
         run: |
-          # Flutter project create karo
-          flutter create buildapp --project-name ridemitra
+          # 1. Project directory banao
+          mkdir -p workspace/lib
 
-          # Python script se Kotlin plugin configuration update karo
+          # 2. Files correct place me copy karo
+          cp pubspec.yaml workspace/pubspec.yaml
+          cp main.dart workspace/lib/main.dart
+
+          # 3. Android scaffolding generate karo inside workspace
+          cd workspace
+          flutter create . --project-name ridemitra --overwrite
+
+          # 4. Kotlin gradle plugin configuration patch karo
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          p = Path("buildapp/android/settings.gradle")
-          s = p.read_text()
-
-          if "org.jetbrains.kotlin.android" not in s:
-              s = s.replace(
-                  "plugins {",
-                  'plugins {\n    id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
-                  1
-              )
-          elif re.search(
-              r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false',
-              s
-          ):
-              s = re.sub(
-                  r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false',
-                  'id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
-                  s,
-                  count=1
-              )
-
-          p.write_text(s)
+          p = Path("android/settings.gradle")
+          if p.exists():
+              s = p.read_text()
+              if "org.jetbrains.kotlin.android" not in s:
+                  s = s.replace(
+                      "plugins {",
+                      'plugins {\n    id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
+                      1
+                  )
+              elif re.search(r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false', s):
+                  s = re.sub(
+                      r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false',
+                      'id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
+                      s,
+                      count=1
+                  )
+              p.write_text(s)
           PY
 
-          # Files copy karo project folder ke andar
-          cp main.dart buildapp/lib/main.dart
-          cp pubspec.yaml buildapp/pubspec.yaml
-
-      - name: Build APK
-        working-directory: buildapp
-        run: |
+          # 5. Build APK
           flutter pub get
           flutter build apk --release
 
-      - name: Upload APK Artifact
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: RideMitra-APK
-          path: buildapp/build/app/outputs/flutter-apk/app-release.apk
+          path: workspace/build/app/outputs/flutter-apk/app-release.apk
           
