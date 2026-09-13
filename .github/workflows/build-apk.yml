@@ -1,39 +1,3 @@
-name: Build RideMitra APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.x'
-          channel: 'stable'
-
-      - name: Prepare and Build Flutter Project
-        run: |
-          # 1. Project directory banao
-          mkdir -p workspace/lib
-
-          # 2. Files correct place me copy karo
-          cp pubspec.yaml workspace/pubspec.yaml
-          cp main.dart workspace/lib/main.dart
-
           # 3. Android scaffolding generate karo inside workspace
           cd workspace
           flutter create . --project-name ridemitra --overwrite
