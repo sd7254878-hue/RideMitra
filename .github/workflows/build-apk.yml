@@ -1,8 +1,47 @@
-          # 3. Android scaffolding generate karo inside workspace
+name: Build RideMitra APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Prepare and Build Flutter Project
+        run: |
+          # 1. Project directory setup
+          mkdir -p workspace
+
+          # 2. Base project skeleton generate karo
           cd workspace
           flutter create . --project-name ridemitra --overwrite
 
-          # 4. Kotlin gradle plugin configuration patch karo
+          # 3. AAPKI main.dart aur pubspec.yaml copy karo (overwrite default counter code)
+          cd ..
+          cp pubspec.yaml workspace/pubspec.yaml
+          cp main.dart workspace/lib/main.dart
+
+          cd workspace
+
+          # 4. Kotlin settings script
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -35,4 +74,3 @@
         with:
           name: RideMitra-APK
           path: workspace/build/app/outputs/flutter-apk/app-release.apk
-          
