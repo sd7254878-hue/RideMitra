@@ -1,0 +1,30 @@
+name: Build RideMitra APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.0'
+          channel: stable
+
+      - name: Create Android project
+        run: |
+          flutter create buildapp --project-name ridemitra
+          cp main.dart buildapp/lib/main.dart
+          cp pubspec.yaml buildapp/pubspec.yaml
+          cd buildapp
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RideMitra-APK
+          path: buildapp/build/app/outputs/flutter-apk/app-release.apk
