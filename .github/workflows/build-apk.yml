@@ -11,24 +11,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.0'
           channel: stable
 
-      - name: Create Flutter Android project
+      - name: Create Android project
         run: |
           flutter create buildapp --project-name ridemitra
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("buildapp/android/settings.gradle")
+          s = p.read_text()
+
+          if 'org.jetbrains.kotlin.android' not in s:
+              s = s.replace(
+                  'plugins {',
+                  'plugins {\n    id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
+                  1
+              )
+          elif re.search(r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false', s):
+              s = re.sub(
+                  r'id\s+"org\.jetbrains\.kotlin\.android"\s+apply false',
+                  'id "org.jetbrains.kotlin.android" version "2.1.0" apply false',
+                  s,
+                  count=1
+              )
+
+          p.write_text(s)
+          PY
+
           cp main.dart buildapp/lib/main.dart
+          cp pubspec.yaml buildapp/pubspec.yaml
 
           cd buildapp
-          flutter pub add google_maps_flutter
-          flutter pub add geolocator
-          flutter pub add http
-          flutter pub add shared_preferences
-          flutter pub add url_launcher
-
           flutter pub get
           flutter build apk --release
 
