@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
 void main() {
@@ -32,10 +31,7 @@ class MapHomeScreen extends StatefulWidget {
 }
 
 class _MapHomeScreenState extends State<MapHomeScreen> {
-  GoogleMapController? _mapController;
-  LatLng _initialCameraPosition = const LatLng(28.6139, 77.2090); // Default Location
-  final Set<Marker> _markers = {};
-  bool _isLoading = true;
+  String _locationStatus = "Locating your position...";
 
   @override
   void initState() {
@@ -47,7 +43,7 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _stopLoading();
+        if (mounted) setState(() => _locationStatus = "Location services disabled");
         return;
       }
 
@@ -55,17 +51,16 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _stopLoading();
+          if (mounted) setState(() => _locationStatus = "Permission denied");
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _stopLoading();
+        if (mounted) setState(() => _locationStatus = "Permission permanently denied");
         return;
       }
 
-      // 5 seconds timeout added to prevent infinite loading
       Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
@@ -73,35 +68,13 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
         ),
       );
 
-      LatLng currentLatLng = LatLng(position.latitude, position.longitude);
-
       if (mounted) {
         setState(() {
-          _initialCameraPosition = currentLatLng;
-          _markers.add(
-            Marker(
-              markerId: const MarkerId('currentLocation'),
-              position: currentLatLng,
-              infoWindow: const InfoWindow(title: 'My Location'),
-            ),
-          );
-          _isLoading = false;
+          _locationStatus = "GPS Active: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
         });
-
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(currentLatLng, 15),
-        );
       }
     } catch (e) {
-      _stopLoading();
-    }
-  }
-
-  void _stopLoading() {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _locationStatus = "Location active (Default View)");
     }
   }
 
@@ -109,44 +82,92 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RideMitra Map', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('RideMitra', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0F2537),
         foregroundColor: Colors.white,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _initialCameraPosition,
-                    zoom: 15,
-                  ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  markers: _markers,
-                  onMapCreated: (controller) => _mapController = controller,
-                ),
-                Positioned(
-                  bottom: 20,
-                  left: 16,
-                  right: 16,
-                  child: Card(
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.search, color: Colors.grey),
-                          SizedBox(width: 10),
-                          Text('Where to?', style: TextStyle(fontSize: 16, color: Colors.grey)),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Map Placeholder Container (Crash Prevention)
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.map_rounded, size: 64, color: Colors.amber.shade700),
+                          const SizedBox(height: 8),
+                          Text(
+                            _locationStatus,
+                            style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500),
+                          ),
                         ],
                       ),
                     ),
-                  ),
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      right: 16,
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.search, color: Colors.grey),
+                              SizedBox(width: 10),
+                              Text('Where to?', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
+            // Ride Options Bottom Sheet
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Select Ride', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  _buildRideOption('Bike', 'Fastest choice', '₹45', Icons.directions_bike),
+                  _buildRideOption('Auto', 'Comfortable ride', '₹78', Icons.electric_rickshaw),
+                  _buildRideOption('Cab', 'AC Hatchback', '₹132', Icons.directions_car),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRideOption(String title, String subtitle, String price, IconData icon) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      elevation: 0,
+      color: Colors.amber.shade50,
+      child: ListTile(
+        leading: Icon(icon, color: Colors.black87),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
     );
   }
 }
