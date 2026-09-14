@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,51 +30,80 @@ class MapHomeScreen extends StatefulWidget {
 }
 
 class _MapHomeScreenState extends State<MapHomeScreen> {
-  String _locationStatus = "Locating your position...";
+  String selectedDestination = "Select Destination";
+  String selectedRide = "Bike";
+  String ridePrice = "₹45";
+  bool isBooking = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _getUserLocation();
+  final List<Map<String, String>> popularPlaces = [
+    {"name": "Railway Station", "distance": "3.5 km", "price": "₹45"},
+    {"name": "Main Market / City Mall", "distance": "5.2 km", "price": "₹65"},
+    {"name": "Airport", "distance": "12.0 km", "price": "₹180"},
+    {"name": "Bus Stand", "distance": "2.1 km", "price": "₹35"},
+  ];
+
+  void _showSearchBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Where to?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search, color: Colors.amber),
+                  hintText: 'Enter destination...',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Popular Destinations', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              ...popularPlaces.map((place) => ListTile(
+                leading: const Icon(Icons.location_on, color: Colors.amber),
+                title: Text(place['name']!),
+                subtitle: Text(place['distance']!),
+                trailing: Text(place['price']!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () {
+                  setState(() {
+                    selectedDestination = place['name']!;
+                    ridePrice = place['price']!;
+                  });
+                  Navigator.pop(context);
+                },
+              )),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Future<void> _getUserLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) setState(() => _locationStatus = "Location services disabled");
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          if (mounted) setState(() => _locationStatus = "Permission denied");
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _locationStatus = "Permission permanently denied");
-        return;
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 5),
-        ),
-      );
-
+  void _startBookingProcess() {
+    setState(() => isBooking = true);
+    Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
-        setState(() {
-          _locationStatus = "GPS Active: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}";
-        });
+        setState(() => isBooking = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Driver Found! Ramesh Kumar is on the way (Hero Splendor - BR01 AB 1234)'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
+        );
       }
-    } catch (e) {
-      if (mounted) setState(() => _locationStatus = "Location active (Default View)");
-    }
+    });
   }
 
   @override
@@ -89,7 +117,7 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Map Placeholder Container (Crash Prevention)
+            // Map Mock Area
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -100,29 +128,48 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.map_rounded, size: 64, color: Colors.amber.shade700),
-                          const SizedBox(height: 8),
-                          Text(
-                            _locationStatus,
-                            style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500),
+                          Icon(
+                            isBooking ? Icons.local_taxi : Icons.map_rounded,
+                            size: 64,
+                            color: Colors.amber.shade700,
                           ),
+                          const SizedBox(height: 10),
+                          Text(
+                            isBooking ? "Finding Nearest Drivers..." : "Live Map Area",
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          if (isBooking) const Padding(
+                            padding: EdgeInsets.only(top: 16.0),
+                            child: CircularProgressIndicator(color: Colors.amber),
+                          )
                         ],
                       ),
                     ),
+                    // Where To Search Bar Trigger
                     Positioned(
                       top: 16,
                       left: 16,
                       right: 16,
-                      child: Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.search, color: Colors.grey),
-                              SizedBox(width: 10),
-                              Text('Where to?', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                            ],
+                      child: GestureDetector(
+                        onTap: _showSearchBottomSheet,
+                        child: Card(
+                          elevation: 4,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.search, color: Colors.amber),
+                                const SizedBox(width: 10),
+                                Text(
+                                  selectedDestination,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: selectedDestination == "Select Destination" ? FontWeight.normal : FontWeight.bold,
+                                    color: selectedDestination == "Select Destination" ? Colors.grey : Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -131,7 +178,7 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
                 ),
               ),
             ),
-            // Ride Options Bottom Sheet
+            // Ride Selector & Confirm Panel
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: const BoxDecoration(
@@ -143,30 +190,35 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Select Ride', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  _buildRideOption('Bike', 'Fastest choice', '₹45', Icons.directions_bike),
-                  _buildRideOption('Auto', 'Comfortable ride', '₹78', Icons.electric_rickshaw),
-                  _buildRideOption('Cab', 'AC Hatchback', '₹132', Icons.directions_car),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Destination: $selectedDestination', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text(ridePrice, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                  const Divider(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: isBooking ? null : _startBookingProcess,
+                      child: Text(
+                        isBooking ? 'Searching Driver...' : 'Book RideMitra Now',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRideOption(String title, String subtitle, String price, IconData icon) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      elevation: 0,
-      color: Colors.amber.shade50,
-      child: ListTile(
-        leading: Icon(icon, color: Colors.black87),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }
