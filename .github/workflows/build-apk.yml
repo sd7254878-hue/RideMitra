@@ -27,40 +27,21 @@ jobs:
 
       - name: Prepare and Patch Android App
         run: |
-          # 1. Workspace create karo
           mkdir -p workspace
           cd workspace
           flutter create . --project-name ridemitra --overwrite
 
-          # 2. Files replace karo
           cd ..
           cp main.dart workspace/lib/main.dart
           if [ -f "pubspec.yaml" ]; then cp pubspec.yaml workspace/pubspec.yaml; fi
 
           cd workspace
 
-          # 3. Android Manifest me Location aur Internet Permissions Inject karo
-          python3 - <<'PY'
-          from pathlib import Path
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>' android/app/src/main/AndroidManifest.xml
 
-          manifest_path = Path("android/app/src/main/AndroidManifest.xml")
-          if manifest_path.exists():
-              content = manifest_path.read_text()
-              permissions = '''
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-              '''
-              if "ACCESS_FINE_LOCATION" not in content:
-                  content = content.replace('<manifest', '<manifest\n' + permissions, 1)
-                  manifest_path.write_text(content)
-          PY
-
-          # 4. APK Build karo
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
-          # 5. Output prepare karo
           mkdir -p $GITHUB_WORKSPACE/output
           cp build/app/outputs/flutter-apk/app-release.apk $GITHUB_WORKSPACE/output/app-release.apk
 
@@ -69,3 +50,4 @@ jobs:
         with:
           name: RideMitra-APK
           path: output/app-release.apk
+          
