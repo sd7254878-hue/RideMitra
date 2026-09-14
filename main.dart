@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,103 +19,124 @@ class RideMitraApp extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.amber,
       ),
-      home: const RideHomeScreen(),
+      home: const MapHomeScreen(),
     );
   }
 }
 
-class RideHomeScreen extends StatefulWidget {
-  const RideHomeScreen({super.key});
+class MapHomeScreen extends StatefulWidget {
+  const MapHomeScreen({super.key});
 
   @override
-  State<RideHomeScreen> createState() => _RideHomeScreenState();
+  State<MapHomeScreen> createState() => _MapHomeScreenState();
 }
 
-class _RideHomeScreenState extends State<RideHomeScreen> {
-  final String _locationStatus = "Current location";
+class _MapHomeScreenState extends State<MapHomeScreen> {
+  GoogleMapController? _mapController;
+  LatLng _initialCameraPosition = const LatLng(28.6139, 77.2090); // Default: New Delhi
+  final Set<Marker> _markers = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      LatLng currentLatLng = LatLng(position.latitude, position.longitude);
+
+      if (mounted) {
+        setState(() {
+          _initialCameraPosition = currentLatLng;
+          _markers.add(
+            Marker(
+              markerId: const MarkerId('currentLocation'),
+              position: currentLatLng,
+              infoWindow: const InfoWindow(title: 'My Location'),
+            ),
+          );
+          _isLoading = false;
+        });
+
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(currentLatLng, 15),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RideMitra', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('RideMitra Map', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0F2537),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
-          )
-        ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                elevation: 0,
-                color: Colors.amber.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.my_location, color: Colors.amber),
-                      const SizedBox(width: 10),
-                      Text(
-                        _locationStatus,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _initialCameraPosition,
+                    zoom: 15,
+                  ),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  markers: _markers,
+                  onMapCreated: (controller) => _mapController = controller,
+                ),
+                Positioned(
+                  bottom: 20,
+                  left: 16,
+                  right: 16,
+                  child: Card(
+                    elevation: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.search, color: Colors.grey),
+                          SizedBox(width: 10),
+                          Text('Where to?', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.location_on),
-                  hintText: 'Where to?',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Choose your ride',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              _buildRideOption('Bike', 'Fast & Affordable', '₹45', '2 min', Icons.directions_bike),
-              _buildRideOption('Auto', 'Comfortable & Quick', '₹78', '4 min', Icons.electric_rickshaw),
-              _buildRideOption('Cab', 'AC Car • More Space', '₹132', '6 min', Icons.directions_car),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRideOption(String title, String subtitle, String price, String time, IconData icon) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.amber.shade100,
-          child: Icon(icon, color: Colors.black87),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(price, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(time, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ],
-        ),
-      ),
+              ],
+            ),
     );
   }
 }
