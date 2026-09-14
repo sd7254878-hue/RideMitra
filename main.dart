@@ -1,4 +1,3 @@
-
   final List<Map<String, String>> popularPlaces = [
     {"name": "Railway Station", "distance": "3.5 km", "price": "₹45"},
     {"name": "Main Market / City Mall", "distance": "5.2 km", "price": "₹65"},
