@@ -1,39 +1,3 @@
-import 'package:flutter/material.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const RideMitraApp());
-}
-
-class RideMitraApp extends StatelessWidget {
-  const RideMitraApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'RideMitra',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.amber,
-      ),
-      home: const MapHomeScreen(),
-    );
-  }
-}
-
-class MapHomeScreen extends StatefulWidget {
-  const MapHomeScreen({super.key});
-
-  @override
-  State<MapHomeScreen> createState() => _MapHomeScreenState();
-}
-
-class _MapHomeScreenState extends State<MapHomeScreen> {
-  String selectedDestination = "Select Destination";
-  String selectedRide = "Bike";
-  String ridePrice = "₹45";
-  bool isBooking = false;
 
   final List<Map<String, String>> popularPlaces = [
     {"name": "Railway Station", "distance": "3.5 km", "price": "₹45"},
