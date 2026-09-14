@@ -33,7 +33,7 @@ class MapHomeScreen extends StatefulWidget {
 
 class _MapHomeScreenState extends State<MapHomeScreen> {
   GoogleMapController? _mapController;
-  LatLng _initialCameraPosition = const LatLng(28.6139, 77.2090); // Default: New Delhi
+  LatLng _initialCameraPosition = const LatLng(28.6139, 77.2090); // Default Location
   final Set<Marker> _markers = {};
   bool _isLoading = true;
 
@@ -47,7 +47,7 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _isLoading = false);
+        _stopLoading();
         return;
       }
 
@@ -55,18 +55,22 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() => _isLoading = false);
+          _stopLoading();
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _isLoading = false);
+        _stopLoading();
         return;
       }
 
+      // 5 seconds timeout added to prevent infinite loading
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 5),
+        ),
       );
 
       LatLng currentLatLng = LatLng(position.latitude, position.longitude);
@@ -89,9 +93,15 @@ class _MapHomeScreenState extends State<MapHomeScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      _stopLoading();
+    }
+  }
+
+  void _stopLoading() {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
