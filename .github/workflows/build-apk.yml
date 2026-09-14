@@ -25,26 +25,12 @@ jobs:
           flutter-version: '3.x'
           channel: 'stable'
 
-      - name: Build Android APK
+      - name: Create and Build Project
         run: |
-          mkdir -p workspace/lib
-          cd workspace
-          cat << 'EOF' > pubspec.yaml
-          name: ridemitra
-          description: "A new Flutter project."
-          publish_to: 'none'
-          version: 1.0.0+1
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-          dependencies:
-            flutter:
-              sdk: flutter
-            geolocator: ^10.1.0
-            cupertino_icons: ^1.0.6
-          flutter:
-            uses-material-design: true
-          EOF
+          flutter create app_temp --project-name ridemitra --org com.ridemitra.app
+          cd app_temp
           cp ../main.dart lib/main.dart
+          flutter pub add geolocator cupertino_icons
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
           mkdir -p $GITHUB_WORKSPACE/output
